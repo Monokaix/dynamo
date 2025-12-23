@@ -47,7 +47,7 @@ ARG DEEPEP_COMMIT=9af0e0d0e74f3577af1979c9b9e1ac2cad0104ee
 ARG DEEPEP_GB_COMMIT=1b14ad661c7640137fcfe93cccb2694ede1220b0
 ARG CMAKE_BUILD_PARALLEL_LEVEL=2
 ARG SGL_KERNEL_VERSION=0.3.16.post5
-ARG SGLANG_COMMIT=0.5.4.post3
+# ARG SGLANG_COMMIT=0.5.4.post3  # Not used - installing from main branch
 ARG GDRCOPY_COMMIT=v2.4.4
 ARG NVSHMEM_VERSION=3.3.9
 ARG GRACE_BLACKWELL=false
@@ -78,76 +78,76 @@ RUN apt-get update \
     && add-apt-repository ppa:deadsnakes/ppa -y \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        # Python (using other python versions as needed)
-        python${PYTHON_VERSION}-dev \
-        python${PYTHON_VERSION}-venv \
-        python${PYTHON_VERSION}-distutils \
-        python3-pip \
-        # Build essentials
-        build-essential \
-        cmake \
-        ninja-build \
-        ccache \
-        patchelf \
-        git \
-        git-lfs \
-        # Core system utilities
-        tzdata \
-        locales \
-        ca-certificates \
-        dkms \
-        kmod \
-        # Command line tools
-        wget \
-        curl \
-        jq \
-        unzip \
-        # Network utilities
-        netcat-openbsd \
-        # SSL and pkg-config
-        libssl-dev \
-        pkg-config \
-        # MPI and NUMA
-        libopenmpi-dev \
-        libnuma1 \
-        libnuma-dev \
-        numactl \
-        # InfiniBand/RDMA
-        libibverbs-dev \
-        libibverbs1 \
-        libibumad3 \
-        librdmacm1 \
-        libnl-3-200 \
-        libnl-route-3-200 \
-        libnl-route-3-dev \
-        libnl-3-dev \
-        ibverbs-providers \
-        infiniband-diags \
-        perftest \
-        # Development libraries
-        libgoogle-glog-dev \
-        libgtest-dev \
-        libjsoncpp-dev \
-        libunwind-dev \
-        libboost-all-dev \
-        libgrpc-dev \
-        libgrpc++-dev \
-        libprotobuf-dev \
-        protobuf-compiler \
-        protobuf-compiler-grpc \
-        pybind11-dev \
-        libhiredis-dev \
-        libcurl4-openssl-dev \
-        libczmq4 \
-        libczmq-dev \
-        libfabric-dev \
-        # Package building tools
-        devscripts \
-        debhelper \
-        fakeroot \
-        check \
-        libsubunit0 \
-        libsubunit-dev \
+    # Python (using other python versions as needed)
+    python${PYTHON_VERSION}-dev \
+    python${PYTHON_VERSION}-venv \
+    python${PYTHON_VERSION}-distutils \
+    python3-pip \
+    # Build essentials
+    build-essential \
+    cmake \
+    ninja-build \
+    ccache \
+    patchelf \
+    git \
+    git-lfs \
+    # Core system utilities
+    tzdata \
+    locales \
+    ca-certificates \
+    dkms \
+    kmod \
+    # Command line tools
+    wget \
+    curl \
+    jq \
+    unzip \
+    # Network utilities
+    netcat-openbsd \
+    # SSL and pkg-config
+    libssl-dev \
+    pkg-config \
+    # MPI and NUMA
+    libopenmpi-dev \
+    libnuma1 \
+    libnuma-dev \
+    numactl \
+    # InfiniBand/RDMA
+    libibverbs-dev \
+    libibverbs1 \
+    libibumad3 \
+    librdmacm1 \
+    libnl-3-200 \
+    libnl-route-3-200 \
+    libnl-route-3-dev \
+    libnl-3-dev \
+    ibverbs-providers \
+    infiniband-diags \
+    perftest \
+    # Development libraries
+    libgoogle-glog-dev \
+    libgtest-dev \
+    libjsoncpp-dev \
+    libunwind-dev \
+    libboost-all-dev \
+    libgrpc-dev \
+    libgrpc++-dev \
+    libprotobuf-dev \
+    protobuf-compiler \
+    protobuf-compiler-grpc \
+    pybind11-dev \
+    libhiredis-dev \
+    libcurl4-openssl-dev \
+    libczmq4 \
+    libczmq-dev \
+    libfabric-dev \
+    # Package building tools
+    devscripts \
+    debhelper \
+    fakeroot \
+    check \
+    libsubunit0 \
+    libsubunit-dev \
     # Set Python alternatives
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
     && update-alternatives --set python3 /usr/bin/python${PYTHON_VERSION} \
@@ -163,7 +163,7 @@ RUN apt-get update \
 COPY container/use-sccache.sh /tmp/use-sccache.sh
 RUN if [ "$USE_SCCACHE" = "true" ]; then \
     /tmp/use-sccache.sh install; \
-fi
+    fi
 
 # Set environment variables - they'll be empty strings if USE_SCCACHE=false
 ENV SCCACHE_BUCKET=${USE_SCCACHE:+${SCCACHE_BUCKET}} \
@@ -197,14 +197,16 @@ RUN userdel -r ubuntu > /dev/null 2>&1 || true \
 USER dynamo
 ENV HOME=/home/dynamo
 
-# Install SGLang (requires CUDA 12.8.1 or 12.9.1)
+# Install SGLang from main branch (latest version)
 RUN python3 -m pip install --no-cache-dir --ignore-installed pip==25.3 setuptools==80.9.0 wheel==0.45.1 html5lib==1.1 six==1.17.0 \
-    && git clone --depth 1 --branch v${SGLANG_COMMIT} https://github.com/sgl-project/sglang.git \
+    && git clone --depth 1 --branch main https://github.com/sgl-project/sglang.git \
     && cd sglang \
+    && echo "Building SGLang from commit: $(git rev-parse --short HEAD)" \
     && case "$CUDA_VERSION" in \
-        12.8.1) CUINDEX=128 ;; \
-        12.9.1) CUINDEX=129 ;; \
-        *) echo "Error: Unsupported CUDA version for sglang: $CUDA_VERSION (requires 12.8.1 or 12.9.1)" && exit 1 ;; \
+    12.6*|12.7*) CUINDEX=126 ;; \
+    12.8*) CUINDEX=128 ;; \
+    12.9*) CUINDEX=129 ;; \
+    *) echo "Error: Unsupported CUDA version for sglang: $CUDA_VERSION (requires 12.6+)" && exit 1 ;; \
     esac \
     && python3 -m pip install --no-cache-dir sgl-kernel==${SGL_KERNEL_VERSION} \
     && python3 -m pip install --no-cache-dir -e "python[${BUILD_TYPE}]" --extra-index-url https://download.pytorch.org/whl/cu${CUINDEX} \
@@ -218,15 +220,15 @@ RUN --mount=type=cache,target=/var/cache/curl,uid=1000,gid=0 \
     && mv nvshmem_src nvshmem \
     && rm -f /var/cache/curl/nvshmem_src_cuda12-all-all-${NVSHMEM_VERSION}.tar.gz \
     && if [ "$GRACE_BLACKWELL" = true ]; then \
-        git clone --depth 1 https://github.com/fzyzcjy/DeepEP.git \
-        && cd DeepEP \
-        && git fetch --depth 1 origin ${DEEPEP_GB_COMMIT} \
-        && git checkout ${DEEPEP_GB_COMMIT}; \
+    git clone --depth 1 https://github.com/fzyzcjy/DeepEP.git \
+    && cd DeepEP \
+    && git fetch --depth 1 origin ${DEEPEP_GB_COMMIT} \
+    && git checkout ${DEEPEP_GB_COMMIT}; \
     else \
-        git clone --depth 1 https://github.com/deepseek-ai/DeepEP.git \
-        && cd DeepEP \
-        && git fetch --depth 1 origin ${DEEPEP_COMMIT} \
-        && git checkout ${DEEPEP_COMMIT}; \
+    git clone --depth 1 https://github.com/deepseek-ai/DeepEP.git \
+    && cd DeepEP \
+    && git fetch --depth 1 origin ${DEEPEP_COMMIT} \
+    && git checkout ${DEEPEP_COMMIT}; \
     fi \
     && sed -i 's/#define NUM_CPU_TIMEOUT_SECS 100/#define NUM_CPU_TIMEOUT_SECS 1000/' csrc/kernels/configs.cuh
 
@@ -321,13 +323,13 @@ ENV NIXL_PREFIX=/opt/nvidia/nvda_nixl
 ENV NIXL_LIB_DIR=${NIXL_PREFIX}/lib/${ARCH_ALT}-linux-gnu
 ENV NIXL_PLUGIN_DIR=${NIXL_LIB_DIR}/plugins
 ENV LD_LIBRARY_PATH=\
-${NVSHMEM_DIR}/lib:\
-${NIXL_LIB_DIR}:\
-${NIXL_PLUGIN_DIR}:\
-/usr/local/ucx/lib:\
-/usr/local/ucx/lib/ucx:\
-/usr/local/nvidia/lib64:\
-${LD_LIBRARY_PATH}
+    ${NVSHMEM_DIR}/lib:\
+    ${NIXL_LIB_DIR}:\
+    ${NIXL_PLUGIN_DIR}:\
+    /usr/local/ucx/lib:\
+    /usr/local/ucx/lib/ucx:\
+    /usr/local/nvidia/lib64:\
+    ${LD_LIBRARY_PATH}
 
 ARG DYNAMO_COMMIT_SHA
 ENV DYNAMO_COMMIT_SHA=$DYNAMO_COMMIT_SHA
@@ -356,9 +358,9 @@ RUN python3 -m pip install \
 RUN --mount=type=bind,source=./container/deps/requirements.txt,target=/tmp/requirements.txt \
     --mount=type=bind,source=./container/deps/requirements.test.txt,target=/tmp/requirements.test.txt \
     python3 -m pip install \
-        --no-cache \
-        --requirement /tmp/requirements.txt \
-        --requirement /tmp/requirements.test.txt
+    --no-cache \
+    --requirement /tmp/requirements.txt \
+    --requirement /tmp/requirements.test.txt
 
 ## Copy attribution files and launch banner with correct ownership
 COPY --chown=dynamo: ATTRIBUTION* LICENSE /workspace/
